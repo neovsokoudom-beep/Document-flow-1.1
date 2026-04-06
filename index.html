@@ -1,0 +1,479 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Document Workflow Entry and Search</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f7fb; color: #111; }
+    .wrap { max-width: 980px; margin: 20px auto; padding: 0 12px; }
+    .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    h2, h3 { margin: 0 0 10px; font-size: 18px; }
+    label { display: block; margin-top: 8px; font-size: 13px; color: #666; }
+    input, select, textarea {
+      width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px; padding: 9px; font-size: 14px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 8px; padding: 10px 12px; cursor: pointer; font-weight: 700; }
+    .primary { background: #0b74de; color: #fff; }
+    .secondary { background: #e8edf7; color: #0b74de; }
+    .accent { background: #10b981; color: #fff; }
+    .muted { color: #666; font-size: 13px; }
+    .hidden { display: none; }
+    .step-row { margin-bottom: 8px; }
+    .report-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+    ul { list-style: none; padding: 0; margin: 10px 0 0; }
+    li { padding: 10px 0; border-bottom: 1px solid #eee; }
+    .hint { background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+    @media (max-width: 700px) { .row { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="panelOne">
+      <h2>First Panel: Build Workflow</h2>
+      <div class="hint">Fill title and steps, then click Confirm to move to the report panel.</div>
+
+      <label for="workflow_id">ID</label>
+      <input id="workflow_id" placeholder="WF-2026-0001" />
+
+      <label for="title">Fill Title</label>
+      <input id="title" placeholder="Purchase Request - Printer" />
+
+      <div id="stepsContainer" style="margin-top:8px"></div>
+
+      <div class="btns">
+        <button type="button" class="secondary" id="addStepBtn">Add Step</button>
+        <button type="button" class="secondary" id="removeStepBtn">Remove Step</button>
+        <button type="button" class="primary" id="confirmBtn">Confirm</button>
+      </div>
+      <div class="muted" id="panelOneStatus"></div>
+    </div>
+
+    <div class="card hidden" id="panelTwo">
+      <h2>Second Panel: Workflow Report</h2>
+      <div class="report-box">
+        <h3 id="reportTitle">-</h3>
+        <div class="muted" id="reportMeta">-</div>
+        <ol id="reportSteps" style="margin-top:10px;"></ol>
+        <label for="workflowSummary">Workflow Summary</label>
+        <textarea id="workflowSummary" readonly></textarea>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="date">Date</label>
+          <input id="date" type="date" />
+        </div>
+        <div>
+          <label for="reference_number">Reference Number</label>
+          <input id="reference_number" placeholder="WF-2026-0001" />
+        </div>
+      </div>
+
+      <label for="tags">Tags (comma separated)</label>
+      <input id="tags" placeholder="workflow,approval,operations" />
+
+      <div class="btns">
+        <button class="secondary" type="button" id="backBtn">Back</button>
+        <button class="accent" type="button" id="submitBtn">Submit Workflow</button>
+        <button class="secondary" type="button" id="clearBtn">Clear</button>
+      </div>
+      <div class="muted" id="entryStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>Search Documents</h2>
+      <div class="row">
+        <div style="flex:2">
+          <label>Quick Search</label>
+          <input id="query" placeholder="Search by ID, title, step, reference" />
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="fType">
+            <option value="">All</option>
+            <option value="Workflow">Workflow</option>
+            <option value="Purchase">Purchase</option>
+            <option value="Contract">Contract</option>
+            <option value="Invoice">Invoice</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="fStatus">
+            <option value="">All</option>
+            <option value="Submitted">Submitted</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Date From</label>
+          <input id="fFrom" type="date" />
+        </div>
+        <div>
+          <label>Date To</label>
+          <input id="fTo" type="date" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" type="button" id="searchBtn">Search</button>
+      </div>
+      <div class="muted" id="searchStatus"></div>
+      <ul id="results"></ul>
+    </div>
+  </div>
+
+  <script>
+    var APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbzhXrKbCbxbWQzcarr7te9NUmfl9hFXKiOmIJf34zeAW-rW4l4wTHrsKb0zFjL5fgZg/exec';
+    var DRAFT_KEY = 'documentWorkflowDraftV2';
+    var MIN_STEPS = 1;
+    var DEFAULT_STEPS = 5;
+
+    function esc(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function todayIso() {
+      var d = new Date();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + m + '-' + day;
+    }
+
+    function suggestWorkflowId() {
+      var d = new Date();
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      var hh = String(d.getHours()).padStart(2, '0');
+      var mm = String(d.getMinutes()).padStart(2, '0');
+      return 'WF-' + y + m + day + '-' + hh + mm;
+    }
+
+    function createStepInput(value) {
+      var container = document.getElementById('stepsContainer');
+      var row = document.createElement('div');
+      row.className = 'step-row';
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'step-input';
+      input.placeholder = 'Step ' + (container.children.length + 1);
+      input.value = value || '';
+      input.addEventListener('input', saveDraft);
+
+      row.appendChild(input);
+      container.appendChild(row);
+      relabelSteps();
+    }
+
+    function relabelSteps() {
+      var rows = document.querySelectorAll('#stepsContainer .step-input');
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].placeholder = 'Step ' + (i + 1);
+      }
+    }
+
+    function getSteps() {
+      var inputs = document.querySelectorAll('#stepsContainer .step-input');
+      var arr = [];
+      for (var i = 0; i < inputs.length; i++) {
+        var v = inputs[i].value.trim();
+        if (v) arr.push(v);
+      }
+      return arr;
+    }
+
+    function buildBestWorkflowSummary(title, steps) {
+      return [
+        'Workflow: ' + title,
+        'Total steps: ' + steps.length,
+        'Suggested route: Initiator -> ' + steps.join(' -> ') + ' -> Archive',
+        'Best practice: assign 1 owner per step, set deadline, and log approval timestamp.'
+      ].join('\n');
+    }
+
+    function getEntryData() {
+      var title = document.getElementById('title').value.trim();
+      var workflowId = document.getElementById('workflow_id').value.trim();
+      var steps = getSteps();
+      var report = buildBestWorkflowSummary(title, steps);
+      return {
+        title: title,
+        workflow_id: workflowId,
+        document_type: 'Workflow',
+        date: document.getElementById('date').value || todayIso(),
+        amount: '',
+        reference_number: document.getElementById('reference_number').value.trim() || workflowId,
+        tags: document.getElementById('tags').value.trim(),
+        steps: steps,
+        workflow_report: report
+      };
+    }
+
+    function saveDraft() {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(getEntryData()));
+      } catch (e) {}
+    }
+
+    function restoreDraft() {
+      try {
+        var raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) {
+          for (var i = 0; i < DEFAULT_STEPS; i++) createStepInput('');
+          document.getElementById('date').value = todayIso();
+          document.getElementById('workflow_id').value = suggestWorkflowId();
+          return;
+        }
+
+        var d = JSON.parse(raw);
+        document.getElementById('title').value = d.title || '';
+        document.getElementById('workflow_id').value = d.workflow_id || suggestWorkflowId();
+        document.getElementById('date').value = d.date || todayIso();
+        document.getElementById('reference_number').value = d.reference_number || '';
+        document.getElementById('tags').value = d.tags || '';
+
+        var steps = Array.isArray(d.steps) && d.steps.length ? d.steps : [];
+        if (!steps.length) {
+          for (var j = 0; j < DEFAULT_STEPS; j++) createStepInput('');
+        } else {
+          for (var k = 0; k < steps.length; k++) createStepInput(steps[k]);
+        }
+      } catch (e) {
+        for (var i2 = 0; i2 < DEFAULT_STEPS; i2++) createStepInput('');
+      }
+    }
+
+    function renderReportAndMove() {
+      var title = document.getElementById('title').value.trim();
+      var workflowId = document.getElementById('workflow_id').value.trim();
+      var steps = getSteps();
+      var status = document.getElementById('panelOneStatus');
+
+      if (!title) {
+        status.textContent = 'Title is required.';
+        return;
+      }
+      if (steps.length < MIN_STEPS) {
+        status.textContent = 'At least one step is required.';
+        return;
+      }
+
+      status.textContent = '';
+      var summary = buildBestWorkflowSummary(title, steps);
+      if (workflowId && !document.getElementById('reference_number').value.trim()) {
+        document.getElementById('reference_number').value = workflowId;
+      }
+      document.getElementById('reportTitle').textContent = title;
+      document.getElementById('reportMeta').textContent = 'Workflow Type: Approval Flow | ID: ' + (workflowId || '-') + ' | Steps: ' + steps.length;
+
+      var reportSteps = document.getElementById('reportSteps');
+      reportSteps.innerHTML = '';
+      for (var i = 0; i < steps.length; i++) {
+        var li = document.createElement('li');
+        li.textContent = 'Step ' + (i + 1) + ': ' + steps[i];
+        reportSteps.appendChild(li);
+      }
+
+      document.getElementById('workflowSummary').value = summary;
+      document.getElementById('panelOne').classList.add('hidden');
+      document.getElementById('panelTwo').classList.remove('hidden');
+      saveDraft();
+    }
+
+    async function postApi(action, data) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        return await new Promise(function(resolve, reject) {
+          google.script.run
+            .withSuccessHandler(function(result) {
+              resolve(result || { success: false, error: 'Empty server response' });
+            })
+            .withFailureHandler(function(err) {
+              reject(new Error(err && err.message ? err.message : String(err)));
+            })
+            .webApi(action, data || {});
+        });
+      }
+
+      var endpoint = String(APPS_SCRIPT_API_URL || '').trim() || window.location.href.split('?')[0];
+      var timeoutMs = 20000;
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = null;
+      if (controller) {
+        timer = setTimeout(function() {
+          controller.abort();
+        }, timeoutMs);
+      }
+
+      var res;
+      try {
+        res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: action, data: data }),
+          signal: controller ? controller.signal : undefined
+        });
+      } catch (fetchErr) {
+        if (fetchErr && fetchErr.name === 'AbortError') {
+          throw new Error('Request timed out after ' + (timeoutMs / 1000) + ' seconds.');
+        }
+        throw fetchErr;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+
+      var text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        var preview = String(text || '').replace(/\s+/g, ' ').slice(0, 80);
+        throw new Error('API response is not JSON. Endpoint: ' + endpoint + ' | Response: ' + preview);
+      }
+    }
+
+    function showRuntimeHint() {
+      if (typeof google !== 'undefined' && google.script && google.script.run) return;
+      if (String(APPS_SCRIPT_API_URL || '').trim()) return;
+      var status = document.getElementById('entryStatus');
+      if (!status) return;
+      status.textContent = 'Warning: Not in Apps Script runtime. Open the Web App /exec URL to submit/search.';
+    }
+
+    async function submitWorkflow() {
+      var submitBtn = document.getElementById('submitBtn');
+      var status = document.getElementById('entryStatus');
+      submitBtn.disabled = true;
+      status.textContent = 'Submitting workflow...';
+
+      try {
+        var payload = getEntryData();
+        var result = await postApi('submit', payload);
+        if (!result.success) throw new Error(result.error || 'Submit failed');
+
+        status.innerHTML = 'Saved. Document ID: <b>' + esc(result.document_id) + '</b>';
+        clearAll();
+        await runSearch();
+      } catch (err) {
+        status.textContent = err.message;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    function clearAll() {
+      document.getElementById('title').value = '';
+      document.getElementById('workflow_id').value = suggestWorkflowId();
+      document.getElementById('reference_number').value = '';
+      document.getElementById('tags').value = '';
+      document.getElementById('date').value = todayIso();
+      document.getElementById('panelOneStatus').textContent = '';
+
+      var container = document.getElementById('stepsContainer');
+      container.innerHTML = '';
+      for (var i = 0; i < DEFAULT_STEPS; i++) createStepInput('');
+
+      document.getElementById('reportTitle').textContent = '-';
+      document.getElementById('reportMeta').textContent = '-';
+      document.getElementById('reportSteps').innerHTML = '';
+      document.getElementById('workflowSummary').value = '';
+
+      document.getElementById('panelTwo').classList.add('hidden');
+      document.getElementById('panelOne').classList.remove('hidden');
+      localStorage.removeItem(DRAFT_KEY);
+    }
+
+    async function runSearch() {
+      var status = document.getElementById('searchStatus');
+      var list = document.getElementById('results');
+      list.innerHTML = '';
+      status.textContent = 'Searching...';
+
+      try {
+        var query = document.getElementById('query').value.trim();
+        var filters = {
+          document_type: document.getElementById('fType').value,
+          status: document.getElementById('fStatus').value,
+          date_from: document.getElementById('fFrom').value,
+          date_to: document.getElementById('fTo').value
+        };
+
+        var result = await postApi('search', { query: query, filters: filters });
+        var rows = result && result.results ? result.results : [];
+
+        status.textContent = rows.length ? ('Found ' + rows.length + ' record(s)') : 'No results';
+
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i];
+          var li = document.createElement('li');
+          li.innerHTML =
+            '<div><b>' + esc(r.document_id) + '</b> - ' + esc(r.title) + '</div>' +
+            '<div class="muted">' + esc(r.document_type) + ' | ' + esc(r.date) + ' | ' + esc(r.status) + ' | Ref: ' + esc(r.reference_number || '-') + '</div>' +
+            '<div class="muted">Steps: ' + esc(r.steps || '-') + '</div>';
+          list.appendChild(li);
+        }
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    }
+
+    document.getElementById('addStepBtn').addEventListener('click', function() {
+      createStepInput('');
+      saveDraft();
+    });
+
+    document.getElementById('removeStepBtn').addEventListener('click', function() {
+      var container = document.getElementById('stepsContainer');
+      if (container.children.length > MIN_STEPS) {
+        container.removeChild(container.lastChild);
+        relabelSteps();
+      }
+      saveDraft();
+    });
+
+    document.getElementById('confirmBtn').addEventListener('click', renderReportAndMove);
+    document.getElementById('backBtn').addEventListener('click', function() {
+      document.getElementById('panelTwo').classList.add('hidden');
+      document.getElementById('panelOne').classList.remove('hidden');
+    });
+    document.getElementById('submitBtn').addEventListener('click', submitWorkflow);
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      document.getElementById('entryStatus').textContent = '';
+      clearAll();
+    });
+
+    ['title', 'workflow_id', 'date', 'reference_number', 'tags'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el.addEventListener('input', saveDraft);
+      el.addEventListener('change', saveDraft);
+    });
+
+    ['searchBtn', 'fType', 'fStatus', 'fFrom', 'fTo'].forEach(function(id) {
+      document.getElementById(id).addEventListener('click', runSearch);
+      document.getElementById(id).addEventListener('change', runSearch);
+    });
+
+    document.getElementById('query').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runSearch();
+      }
+    });
+
+    restoreDraft();
+    showRuntimeHint();
+    runSearch();
+  </script>
+</body>
+</html>
