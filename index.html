@@ -25,10 +25,41 @@
     .hidden { display: none; }
     .step-row { margin-bottom: 8px; }
     .report-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
-    ul { list-style: none; padding: 0; margin: 10px 0 0; }
-    li { padding: 10px 0; border-bottom: 1px solid #eee; }
+    .report-shell { background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border: 1px solid #dbe8f5; border-radius: 12px; padding: 14px; }
+    .report-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 10px; }
+    .report-title-wrap h3 { margin: 0; font-size: 24px; line-height: 1.2; color: #0f172a; }
+    .report-sub { margin-top: 4px; color: #475569; font-size: 13px; }
+    .report-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .meta-badge { background: #eaf2ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .meta-badge.soft { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+    .steps-panel { background: #ffffff; border: 1px solid #d9e2ec; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+    .steps-title { margin: 0 0 8px; font-size: 14px; color: #334155; }
+    .timeline { list-style: none; margin: 0; padding: 0; }
+    .timeline li { position: relative; padding: 8px 0 8px 32px; border-bottom: 1px dashed #e2e8f0; }
+    .timeline li:last-child { border-bottom: 0; }
+    .timeline li::before { content: ''; position: absolute; left: 9px; top: 15px; width: 9px; height: 9px; border-radius: 50%; background: #0b74de; box-shadow: 0 0 0 3px #dbeafe; }
+    .timeline li::after { content: ''; position: absolute; left: 13px; top: 28px; width: 1px; height: calc(100% - 16px); background: #bfdbfe; }
+    .timeline li:last-child::after { display: none; }
+    .timeline-step { font-size: 13px; color: #64748b; margin-bottom: 2px; }
+    .timeline-text { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .summary-panel { margin-top: 12px; }
+    .summary-panel label { margin-top: 0; margin-bottom: 6px; font-weight: 700; color: #334155; }
+    .summary-panel textarea { background: #ffffff; border-color: #d9e2ec; min-height: 112px; }
     .hint { background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
-    @media (max-width: 700px) { .row { flex-direction: column; } }
+    .hint.success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .results-grid { margin-top: 10px; display: grid; gap: 10px; }
+    .result-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; background: #ffffff; }
+    .result-title { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .result-title b { font-size: 16px; }
+    .badge { display: inline-block; font-size: 12px; border-radius: 999px; padding: 2px 8px; font-weight: 700; }
+    .badge.submitted { background: #e8f3ff; color: #1d4ed8; }
+    .badge.draft { background: #fff7e6; color: #9a3412; }
+    .result-meta { color: #4b5563; font-size: 13px; margin-top: 4px; }
+    .result-steps { color: #111827; font-size: 13px; margin-top: 6px; background: #f9fafb; border-radius: 8px; padding: 6px 8px; }
+    @media (max-width: 700px) {
+      .row { flex-direction: column; }
+      .report-title-wrap h3 { font-size: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -36,6 +67,7 @@
     <div class="card" id="panelOne">
       <h2>First Panel: Build Workflow</h2>
       <div class="hint">Fill title and steps, then click Confirm to move to the report panel.</div>
+      <div class="hint success">Cloud storage is enabled: all submitted/draft records save to the shared Google Sheet for all laptops.</div>
 
       <label for="workflow_id">ID</label>
       <input id="workflow_id" placeholder="WF-2026-0001" />
@@ -55,12 +87,28 @@
 
     <div class="card hidden" id="panelTwo">
       <h2>Second Panel: Workflow Report</h2>
-      <div class="report-box">
-        <h3 id="reportTitle">-</h3>
-        <div class="muted" id="reportMeta">-</div>
-        <ol id="reportSteps" style="margin-top:10px;"></ol>
-        <label for="workflowSummary">Workflow Summary</label>
-        <textarea id="workflowSummary" readonly></textarea>
+      <div class="report-shell">
+        <div class="report-head">
+          <div class="report-title-wrap">
+            <h3 id="reportTitle">-</h3>
+            <div class="report-sub" id="reportMeta">-</div>
+          </div>
+          <div class="report-badges">
+            <span class="meta-badge soft" id="reportTypeBadge">Approval Flow</span>
+            <span class="meta-badge" id="reportIdBadge">ID: -</span>
+            <span class="meta-badge soft" id="reportCountBadge">0 Steps</span>
+          </div>
+        </div>
+
+        <div class="steps-panel">
+          <h4 class="steps-title">Workflow Route</h4>
+          <ol id="reportSteps" class="timeline"></ol>
+        </div>
+
+        <div class="summary-panel">
+          <label for="workflowSummary">Workflow Summary</label>
+          <textarea id="workflowSummary" readonly></textarea>
+        </div>
       </div>
 
       <div class="row" style="margin-top:10px;">
@@ -79,6 +127,7 @@
 
       <div class="btns">
         <button class="secondary" type="button" id="backBtn">Back</button>
+        <button class="secondary" type="button" id="saveDraftCloudBtn">Save Draft (Cloud)</button>
         <button class="accent" type="button" id="submitBtn">Submit Workflow</button>
         <button class="secondary" type="button" id="clearBtn">Clear</button>
       </div>
@@ -108,6 +157,7 @@
           <select id="fStatus">
             <option value="">All</option>
             <option value="Submitted">Submitted</option>
+            <option value="Draft">Draft</option>
           </select>
         </div>
       </div>
@@ -125,9 +175,10 @@
 
       <div class="btns">
         <button class="primary" type="button" id="searchBtn">Search</button>
+        <button class="secondary" type="button" id="clearSearchBtn">Clear Filters</button>
       </div>
       <div class="muted" id="searchStatus"></div>
-      <ul id="results"></ul>
+      <div id="results" class="results-grid"></div>
     </div>
   </div>
 
@@ -185,6 +236,48 @@
       }
     }
 
+    function normalizeStepText_(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function stepPriority_(stepText) {
+      var t = normalizeStepText_(stepText);
+      if (!t) return 999;
+
+      if (/initiator|initiate|request|create|start|submit|draft|prepare|maker|input/.test(t)) return 10;
+      if (/review|check|verify|validate|inspect|screen/.test(t)) return 20;
+      if (/approve|approval|authorize|auth|sign|manager/.test(t)) return 30;
+      if (/finance|account|payment|budget|cost|invoice/.test(t)) return 40;
+      if (/final|complete|close|release|dispatch|archive|file/.test(t)) return 50;
+
+      return 60;
+    }
+
+    function autoOrderSteps_(steps) {
+      var list = Array.isArray(steps) ? steps : [];
+      var decorated = [];
+      for (var i = 0; i < list.length; i++) {
+        var raw = String(list[i] || '').trim();
+        if (!raw) continue;
+        decorated.push({
+          text: raw,
+          index: i,
+          priority: stepPriority_(raw)
+        });
+      }
+
+      decorated.sort(function(a, b) {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return a.index - b.index;
+      });
+
+      var ordered = [];
+      for (var j = 0; j < decorated.length; j++) {
+        ordered.push(decorated[j].text);
+      }
+      return ordered;
+    }
+
     function getSteps() {
       var inputs = document.querySelectorAll('#stepsContainer .step-input');
       var arr = [];
@@ -192,7 +285,7 @@
         var v = inputs[i].value.trim();
         if (v) arr.push(v);
       }
-      return arr;
+      return autoOrderSteps_(arr);
     }
 
     function buildBestWorkflowSummary(title, steps) {
@@ -277,13 +370,18 @@
         document.getElementById('reference_number').value = workflowId;
       }
       document.getElementById('reportTitle').textContent = title;
-      document.getElementById('reportMeta').textContent = 'Workflow Type: Approval Flow | ID: ' + (workflowId || '-') + ' | Steps: ' + steps.length;
+      document.getElementById('reportMeta').textContent = 'Professional preview generated from your current workflow steps.';
+      document.getElementById('reportTypeBadge').textContent = 'Approval Flow';
+      document.getElementById('reportIdBadge').textContent = 'ID: ' + (workflowId || '-');
+      document.getElementById('reportCountBadge').textContent = steps.length + (steps.length === 1 ? ' Step' : ' Steps');
 
       var reportSteps = document.getElementById('reportSteps');
       reportSteps.innerHTML = '';
       for (var i = 0; i < steps.length; i++) {
         var li = document.createElement('li');
-        li.textContent = 'Step ' + (i + 1) + ': ' + steps[i];
+        li.innerHTML =
+          '<div class="timeline-step">Step ' + (i + 1) + '</div>' +
+          '<div class="timeline-text">' + esc(steps[i]) + '</div>';
         reportSteps.appendChild(li);
       }
 
@@ -351,25 +449,48 @@
       status.textContent = 'Warning: Not in Apps Script runtime. Open the Web App /exec URL to submit/search.';
     }
 
-    async function submitWorkflow() {
+    async function submitWorkflow(saveAsDraft) {
       var submitBtn = document.getElementById('submitBtn');
+      var draftBtn = document.getElementById('saveDraftCloudBtn');
       var status = document.getElementById('entryStatus');
       submitBtn.disabled = true;
-      status.textContent = 'Submitting workflow...';
+      if (draftBtn) draftBtn.disabled = true;
+      status.textContent = saveAsDraft ? 'Saving draft to cloud...' : 'Submitting workflow...';
 
       try {
         var payload = getEntryData();
+        payload.status = saveAsDraft ? 'Draft' : 'Submitted';
         var result = await postApi('submit', payload);
         if (!result.success) throw new Error(result.error || 'Submit failed');
 
-        status.innerHTML = 'Saved. Document ID: <b>' + esc(result.document_id) + '</b>';
-        clearAll();
+        status.innerHTML = (saveAsDraft ? 'Draft saved to cloud. Document ID: <b>' : 'Saved. Document ID: <b>') + esc(result.document_id) + '</b>';
+        if (!saveAsDraft) clearAll();
         await runSearch();
       } catch (err) {
         status.textContent = err.message;
       } finally {
         submitBtn.disabled = false;
+        if (draftBtn) draftBtn.disabled = false;
       }
+    }
+
+    function normalizeDisplayDate(value) {
+      var s = String(value || '').trim();
+      if (!s) return '-';
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString();
+      }
+      return s;
+    }
+
+    function clearSearchFilters() {
+      document.getElementById('query').value = '';
+      document.getElementById('fType').value = '';
+      document.getElementById('fStatus').value = '';
+      document.getElementById('fFrom').value = '';
+      document.getElementById('fTo').value = '';
+      runSearch();
     }
 
     function clearAll() {
@@ -386,6 +507,9 @@
 
       document.getElementById('reportTitle').textContent = '-';
       document.getElementById('reportMeta').textContent = '-';
+      document.getElementById('reportTypeBadge').textContent = 'Approval Flow';
+      document.getElementById('reportIdBadge').textContent = 'ID: -';
+      document.getElementById('reportCountBadge').textContent = '0 Steps';
       document.getElementById('reportSteps').innerHTML = '';
       document.getElementById('workflowSummary').value = '';
 
@@ -416,12 +540,16 @@
 
         for (var i = 0; i < rows.length; i++) {
           var r = rows[i];
-          var li = document.createElement('li');
-          li.innerHTML =
-            '<div><b>' + esc(r.document_id) + '</b> - ' + esc(r.title) + '</div>' +
-            '<div class="muted">' + esc(r.document_type) + ' | ' + esc(r.date) + ' | ' + esc(r.status) + ' | Ref: ' + esc(r.reference_number || '-') + '</div>' +
-            '<div class="muted">Steps: ' + esc(r.steps || '-') + '</div>';
-          list.appendChild(li);
+          var card = document.createElement('div');
+          var statusKey = String(r.status || '').toLowerCase() === 'draft' ? 'draft' : 'submitted';
+          card.className = 'result-card';
+          card.innerHTML =
+            '<div class="result-title"><b>' + esc(r.document_id) + ' - ' + esc(r.title) + '</b>' +
+            '<span class="badge ' + statusKey + '">' + esc(r.status || '-') + '</span></div>' +
+            '<div class="result-meta">' + esc(r.document_type) + ' | ' + esc(normalizeDisplayDate(r.date)) + ' | Ref: ' + esc(r.reference_number || '-') + '</div>' +
+            '<div class="result-meta">Created: ' + esc(r.created_at || '-') + '</div>' +
+            '<div class="result-steps"><b>Steps:</b> ' + esc(r.steps || '-') + '</div>';
+          list.appendChild(card);
         }
       } catch (err) {
         status.textContent = err.message;
@@ -447,7 +575,8 @@
       document.getElementById('panelTwo').classList.add('hidden');
       document.getElementById('panelOne').classList.remove('hidden');
     });
-    document.getElementById('submitBtn').addEventListener('click', submitWorkflow);
+    document.getElementById('submitBtn').addEventListener('click', function() { submitWorkflow(false); });
+    document.getElementById('saveDraftCloudBtn').addEventListener('click', function() { submitWorkflow(true); });
     document.getElementById('clearBtn').addEventListener('click', function() {
       document.getElementById('entryStatus').textContent = '';
       clearAll();
@@ -463,6 +592,7 @@
       document.getElementById(id).addEventListener('click', runSearch);
       document.getElementById(id).addEventListener('change', runSearch);
     });
+    document.getElementById('clearSearchBtn').addEventListener('click', clearSearchFilters);
 
     document.getElementById('query').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
